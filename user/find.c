@@ -1,6 +1,9 @@
 #include "kernel/types.h"
 #include "kernel/stat.h"
 #include "user/user.h"
+#include "kernel/fs.h"
+#include "kernel/fcntl.h"
+#include "kernel/param.h"
 
 // Check if pattern matches name, 1 if true
 int
@@ -22,8 +25,63 @@ match(char *pattern, char *name)
 
 // Do ls but recursive
 void
-find(char *path)
+find(char *path, char *pattern, int type)
 {
+    char buf[MAXPATH], *p;
+    int fd;
+    struct dirent de;
+    struct stat st;
+    // Opens the file path
+    if((fd = open(path, O_RDONLY)) < 0) {
+        fprintf(2, "find: cannot open %s\n", path);
+        exit(1);
+    }
+    // Get the files stats, specifically need type (dir, file, etc)
+    if(fstat(fd, &st) < 0) {
+        fprintf(2, "find: cannot stat %s\n", path);
+        close(fd);
+        exit(1);
+    }
+    // Make sure we are in a directory
+    if(st.type != T_DIR) {
+        close(fd);
+        return;
+    }
+    // Check that path isn't longer than buf can handle
+    if (strlen(path) + 1 + DIRSIZ + 1 > sizeof buf) {
+        fprintf(2, "find: path too long\n");
+        close(fd);
+        exit(1);
+    }
+    // Copy path into buf, set p to end of path in buf, add a slash for the next file
+    strcpy(buf, path);
+    p = buf + strlen(buf);
+    *p++ = '/'; // First add / then increment p so it points to the next char after the slash
+    
+    // sizeof(de) is fixed to 16, so will be true only if it reads a full dirent struct
+    // Once done reading, the open located in fd is incremented by 16, so we can read the next one
+    while (read(fd, &de, sizeof(de)) == sizeof(de)) {
+        // If 0 then slot empty, so just skip
+        if (de.inum == 0) continue;
+        // Concat name to p and set end to '\0'
+        memmove(p, de.name, DIRSIZ);
+        p[DIRSIZ] = 0;
+        if (strcmp(p, ".") == 0 || strcmp(p, "..") == 0) continue; // Skip . and .. directories
+        // Buf now has path to subdirectory/file, so get stats for it
+        if (stat(buf, &st) < 0) {
+            fprintf(2, "find: cannot stat %s\n", buf);
+            continue;
+        }
+        // If the name/type matches the name/type we are looking for, print it
+        if ((type == 0 || type ==st.type || (type == T_FILE && st.type == T_DEVICE)) && match(pattern, p)) {
+            printf("%s\n", buf);
+        }
+        // If type is directory, recursively call find on it
+        if (st.type == T_DIR) {
+            find(buf, pattern, type);
+        }
+    }
+    close(fd);
 
 }
 
@@ -31,5 +89,24 @@ find(char *path)
 int
 main(int argc, char *argv[])
 {
-
+    if (argc == 5) {
+        if (strcmp(argv[3], "-type") != 0) {
+            fprintf(2, "usage: find <path> <pattern> [-type f or d]\n");
+            exit(1);
+        }
+        if (strcmp(argv[4], "f") == 0) {
+            find(argv[1], argv[2], T_FILE);
+        } else if (strcmp(argv[4], "d") == 0) {
+            find(argv[1], argv[2], T_DIR);
+        } else {
+            fprintf(2, "usage: find <path> <pattern> [-type f or d]\n");
+            exit(1);
+        }
+    } else if (argc == 3) {
+        find(argv[1], argv[2], 0); // 0 means any type
+    } else {
+        fprintf(2, "usage: find <path> <pattern> [-type f or d]\n");
+        exit(1);
+    }
+    exit(0);
 }
