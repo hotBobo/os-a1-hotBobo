@@ -23,7 +23,7 @@ match(char *pattern, char *name)
 }
 // That sucked to figure out
 
-// Do ls but recursive
+// Do ls but recursive and with pattern matching and type checking
 void
 find(char *path, char *pattern, int type)
 {
@@ -56,7 +56,8 @@ find(char *path, char *pattern, int type)
     // Copy path into buf, set p to end of path in buf, add a slash for the next file
     strcpy(buf, path);
     p = buf + strlen(buf);
-    *p++ = '/'; // First add / then increment p so it points to the next char after the slash
+    if (p != buf && *(p-1) != '/')
+        *p++ = '/'; // First add / then increment p so it points to the next char after the slash
     
     // sizeof(de) is fixed to 16, so will be true only if it reads a full dirent struct
     // Once done reading, the open located in fd is incremented by 16, so we can read the next one
@@ -81,14 +82,16 @@ find(char *path, char *pattern, int type)
             find(buf, pattern, type);
         }
     }
+    // Close the file descriptor for the directory we opened at the start of the function so that when we recurse, we aren't opening too many files at once and running out of file descriptors
+    // This makes it so that we can be 13 directories deep, not just have 13 directories
     close(fd);
-
 }
 
 // Parse args and call find
 int
 main(int argc, char *argv[])
 {
+    // If there are 5 args, check that the 4th is -type and the 5th is f or d, then call find with the correct type
     if (argc == 5) {
         if (strcmp(argv[3], "-type") != 0) {
             fprintf(2, "usage: find <path> <pattern> [-type f or d]\n");
