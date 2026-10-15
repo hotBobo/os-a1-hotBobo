@@ -17,6 +17,7 @@ run(char **args)
     // It's forkin' time
     if (pid == 0) {
         // Child
+        // First arg is command, rest are args, last is null terminator
         exec(args[0], args);
         // Should not reach here if exec is successful
         fprintf(2, "xargs: exec failed\n");
@@ -61,6 +62,7 @@ main(int argc, char *argv[])
         if (N <= 0) usageExit();
     }
     // Error if too many args
+    // Base is number of args including cmd, so if base + 2 (for cmd and null terminator) is greater than MAXARG, exit with error
     int base = argc - cmd;
     if (MAXARG < base+2) usageExit();
     
@@ -71,14 +73,17 @@ main(int argc, char *argv[])
     }
     args[base] = 0; // Null terminate args[]
 
+    // New is 1 if we are at the start of a new argument, pos is position in buf, nwords is number of words read, failed is 1 if any run() call failed
     char buf[512], c;
     int new = 1, pos = 0, nwords = 0, failed = 0;
+    // Read from stdin and fill buf with arguments, then call run() when we have N arguments or when we reach the end of input
     // Read one character in at a time, 0 makes it from stdin
     while (read(0, &c, 1) == 1) {
         if(c == ' ' || c == '\t' || c == '\n') {
-            // If space increment and add 0
+            // If space and not new, then we have a new argument, so add it to args[] and increment nwords
             if (!new) {
                 ++nwords;
+                // If we have N arguments, call run() and reset nwords and pos to overwrite buf
                 if (N > 0 && nwords == N) {
                     args[base+nwords] = 0; // Make sure we have terminator
                     // If it returned non-zero then set failed to 1
@@ -101,6 +106,7 @@ main(int argc, char *argv[])
                 nwords = 0; pos = 0;
             }
         } else {
+            // If not space and new, then we have a new argument, so add pointer to location in buf to args[] and increment nwords
             if (new) {
                 args[base+nwords] = &buf[pos];
                 new = 0;
@@ -110,9 +116,11 @@ main(int argc, char *argv[])
                 fprintf(2, "xargs: input too long\n");
                 exit(1);
             }
+            // Add character to buf
             buf[pos++] = c;
         }
     }
+    // If we are not at the start of a new argument, then we have a new argument, so add it to args[] and increment nwords
     if (!new) {buf[pos++] = '\0'; ++nwords;}
     if (nwords > 0) {args[base+nwords]=0; if(run(args) != 0) failed = 1;}
     // If it returned 0 then end of input
