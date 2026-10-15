@@ -25,7 +25,7 @@ run(char **args)
     } else if (pid > 0) {
         // Parent
         wait(&status);
-        printf("status = %d\n", status);
+        // printf("status = %d\n", status);
         return status;
     } else {
         // Error
@@ -62,9 +62,9 @@ main(int argc, char *argv[])
         if (N <= 0) usageExit();
     }
     // Error if too many args
-    // Base is number of args including cmd, so if base + 2 (for cmd and null terminator) is greater than MAXARG, exit with error
+    // Base is number of args including cmd, so if base + 1 (for null terminator) is greater than MAXARG, exit with error
     int base = argc - cmd;
-    if (MAXARG < base+2) usageExit();
+    if (MAXARG < base+1) usageExit();
     
 
     // Fill args[] with arguments after xargs
@@ -83,6 +83,7 @@ main(int argc, char *argv[])
             // If space and not new, then we have a new argument, so add it to args[] and increment nwords
             if (!new) {
                 ++nwords;
+                buf[pos++] = '\0';
                 // If we have N arguments, call run() and reset nwords and pos to overwrite buf
                 if (N > 0 && nwords == N) {
                     args[base+nwords] = 0; // Make sure we have terminator
@@ -96,7 +97,6 @@ main(int argc, char *argv[])
                     fprintf(2, "xargs: too many arguments\n");
                     exit(1);
                 }
-                buf[pos++] = '\0';
             }
             // If endl and no N restrictions, ruuuunnnnnnn
             if (c == '\n' && N == 0 && nwords > 0) {
@@ -111,8 +111,8 @@ main(int argc, char *argv[])
                 args[base+nwords] = &buf[pos];
                 new = 0;
             }
-            // Make sure we don't exceed buf size, if so exit with error
-            if (pos >= sizeof(buf)) {
+            // Make sure we don't exceed buf size with \0, if so exit with error
+            if (pos >= sizeof(buf)-1) {
                 fprintf(2, "xargs: input too long\n");
                 exit(1);
             }
