@@ -94,7 +94,7 @@ main(int argc, char *argv[])
     // If there are 5 args, check that the 4th is -type and the 5th is f or d, then call find with the correct type
     if (argc == 5) {
         if (strcmp(argv[3], "-type") != 0) {
-            fprintf(2, "usage: find <path> <pattern> [-type f or d]\n");
+            fprintf(2, "usage: find <dir> <pattern> [-type f|d]\n");
             exit(1);
         }
         if (strcmp(argv[4], "f") == 0) {
@@ -102,13 +102,13 @@ main(int argc, char *argv[])
         } else if (strcmp(argv[4], "d") == 0) {
             find(argv[1], argv[2], T_DIR);
         } else {
-            fprintf(2, "usage: find <path> <pattern> [-type f or d]\n");
+            fprintf(2, "usage: find <dir> <pattern> [-type f|d]\n");
             exit(1);
         }
     } else if (argc == 3) {
         find(argv[1], argv[2], 0); // 0 means any type
     } else {
-        fprintf(2, "usage: find <path> <pattern> [-type f or d]\n");
+        fprintf(2, "usage: find <dir> <pattern> [-type f|d]\n");
         exit(1);
     }
     exit(0);
