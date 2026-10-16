@@ -135,6 +135,59 @@ static uint64 (*syscalls[])(void) = {
   // clang-format on
 };
 
+static char *syscallnames[] = {
+  // clang-format off
+  [SYS_fork]   = "fork",
+  [SYS_exit]   = "exit",
+  [SYS_wait]   = "wait",
+  [SYS_pipe]   = "pipe",
+  [SYS_read]   = "read",
+  [SYS_kill]   = "kill",
+  [SYS_exec]   = "exec",
+  [SYS_fstat]  = "fstat",
+  [SYS_chdir]  = "chdir",
+  [SYS_dup]    = "dup", 
+  [SYS_getpid] = "getpid",
+  [SYS_sbrk]   = "sbrk",
+  [SYS_pause]  = "pause",
+  [SYS_uptime] = "uptime",
+  [SYS_open]   = "open",
+  [SYS_write]  = "write",
+  [SYS_mknod]  = "mknod",
+  [SYS_unlink] = "unlink",
+  [SYS_link]   = "link",
+  [SYS_mkdir]  = "mkdir",
+  [SYS_close]  = "close",
+  [SYS_sync]   = "sync",
+  [SYS_trace]  = "trace",
+  // clang-format on
+};
+
+// returns which kind of <arg> this syscall prints
+// 0 = int (a0), 1 = string, 2 = nothing
+static int
+argkind(int num)
+{
+  switch (num) {
+    case SYS_open:
+    case SYS_exec:
+    case SYS_chdir:
+    case SYS_mkdir:
+    case SYS_unlink:
+    case SYS_link:
+    case SYS_mknod:
+      return 1;
+    case SYS_fork:
+    case SYS_getpid:
+    case SYS_uptime:
+    case SYS_sync:
+      return 2;
+    default:
+      return 0;
+  }
+}
+
+
 void
 syscall(void)
 {
@@ -145,7 +198,27 @@ syscall(void)
   if (num > 0 && num < NELEM(syscalls) && syscalls[num]) {
     // Use num to lookup the system call function for num, call it,
     // and store its return value in p->trapframe->a0
+    int arg0 = p->trapframe->a0; // Store the original value of a0 before calling the system call
+    char str[MAXPATH];
+    int strok = 0;
+    if (argkind(num) == 1) {
+      strok = (argstr(0, str, MAXPATH) >= 0); // -1 is bad pointer, so just print ?
+    }
     p->trapframe->a0 = syscalls[num]();
+
+    if (p->tracemask & (1 << num)) {
+      int ret = p->trapframe->a0;
+      int kind = argkind(num);
+      if (kind == 1 && strok) {
+        printk("[%d] %s(\"%s\") -> %d\n", p->pid, syscallnames[num], str, ret);
+      } else if (kind == 1 && !strok) {
+        printk("[%d] %s(?) -> %d\n", p->pid, syscallnames[num], ret);
+      } else if (kind == 2) {
+        printk("[%d] %s() -> %d\n", p->pid, syscallnames[num], ret);
+      } else {
+        printk("[%d] %s(%d) -> %d\n", p->pid, syscallnames[num], arg0, ret);
+      }
+    }
   } else {
     printk("%d %s: unknown sys call %d\n", p->pid, p->name, num);
     p->trapframe->a0 = -1;
