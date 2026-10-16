@@ -21,7 +21,7 @@ main(int argc, char *argv[])
 {
   struct sysinfo a, b, c, d, e;
 
-  // Baseline
+  // Baseline. Puts 24 into a7 and runs ecall. Mem addr of a is in a0. Kernel fills in the struct and returns 0.
   check(sysinfo(&a) == 0, "sysinfo returns 0");
   printf("freemem=%lu nproc=%lu nopenfile=%lu\n", a.freemem, a.nproc, a.nopenfile);
 
@@ -56,7 +56,7 @@ main(int argc, char *argv[])
   int fds[2];
   pipe(fds);
   sysinfo(&d);
-  check(d.nopenfile == a.nopenfile + 2, "nopenfile +2 after pipe");
+  check(d.nopenfile == a.nopenfile + 2, "nopenfile +2 after pipe"); // One for pipe read end, one for pipe write end
   close(fds[0]);
   close(fds[1]);
   sysinfo(&e);

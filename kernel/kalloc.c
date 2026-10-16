@@ -27,6 +27,7 @@ void
 kinit()
 {
   initlock(&kmem.lock, "kmem");
+  // Mark the end of the kernel as used, and free the rest of physical memory.
   freerange(end, (void *)PHYSTOP);
 }
 
@@ -81,6 +82,7 @@ kalloc(void)
   return (void *)r;
 }
 
+// Return the number of bytes of free physical memory.
 uint64
 kfreemem(void)
 {

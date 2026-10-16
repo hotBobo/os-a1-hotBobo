@@ -707,12 +707,14 @@ procdump(void)
   }
 }
 
+// Return how many processes whose state is not UNUSED.
 int
 countproc(void)
 {
   int count = 0;
   for (struct proc *p = proc; p < &proc[NPROC]; p++) {
     acquire(&p->lock);
+    // If the process is not UNUSED, increment the count. This means the process is either USED, SLEEPING, RUNNABLE, RUNNING, or ZOMBIE.
     if (p->state != UNUSED) {
       count++;
     }

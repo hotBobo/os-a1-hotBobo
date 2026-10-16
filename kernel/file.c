@@ -178,12 +178,15 @@ filewrite(struct file *f, uint64 addr, int n)
   return ret;
 }
 
+// Return the number of entries in the system file table with ref > 0.
 int
 countfiles(void)
 {
   acquire(&ftable.lock);
   int count = 0;
   for (struct file *f = ftable.file; f < ftable.file + NFILE; f++) {
+    // Only count files that are currently in use by a process (ref > 0)
+    // If reference count is less than or equal to 0, it means the file is not in use and should not be counted.
     if (f->ref > 0) {
       count++;
     }

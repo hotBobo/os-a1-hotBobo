@@ -122,11 +122,18 @@ sys_trace(void)
 uint64
 sys_sysinfo(void) {
     uint64 addr;
-    argaddr(0, &addr);            // the user's pointer: just a number in user address space
-    struct sysinfo info;          // a kernel-side copy, on the kernel stack
-    info.freemem   = kfreemem();
-    info.nproc     = countproc();
-    info.nopenfile = countfiles();
+    // the user's pointer: just a number in user address space, we pass into a0 when invoking sysinfo in user code
+    argaddr(0, &addr);            // read from a0 into addr, which is a pointer to a struct sysinfo in user space
+    struct sysinfo info;          // a kernel-side copy, separate from the user-side struct sysinfo, to be filled in by the kernel
+    // Fill in the struct with information about the system
+    info.freemem   = kfreemem(); // bytes of free physical memory
+    info.nproc     = countproc(); // processes whose state is not UNUSED
+    info.nopenfile = countfiles(); // entries in the system file table with ref > 0
+    // If the copyout fails, return -1. Otherwise, return 0 to indicate success.
+    // Copy the filled-in struct from kernel space to user space at the address provided by the user.
+    // Pagetable is translation for where the user virtual address is in physical memory
+    // sz is the size of the process's memory, addr is the user virtual address
+    // (char *)&info is the kernel address of the struct sysinfo (to copy from), sizeof(info) is the size of the struct
     if (copyout(myproc()->pagetable, myproc()->sz, addr, (char *)&info, sizeof(info)) < 0) {
         return -1;
     }
