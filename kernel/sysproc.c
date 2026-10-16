@@ -6,6 +6,7 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "vm.h"
+#include "sysinfo.h"
 
 uint64
 sys_exit(void)
@@ -116,4 +117,18 @@ sys_trace(void)
 {
   argint(0, &myproc()->tracemask);
   return 0;
+}
+
+uint64
+sys_sysinfo(void) {
+    uint64 addr;
+    argaddr(0, &addr);            // the user's pointer: just a number in user address space
+    struct sysinfo info;          // a kernel-side copy, on the kernel stack
+    info.freemem   = kfreemem();
+    info.nproc     = countproc();
+    info.nopenfile = countfiles();
+    if (copyout(myproc()->pagetable, myproc()->sz, addr, (char *)&info, sizeof(info)) < 0) {
+        return -1;
+    }
+    return 0;
 }

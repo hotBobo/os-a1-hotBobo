@@ -705,3 +705,17 @@ procdump(void)
     printk("\n");
   }
 }
+
+int
+countproc(void)
+{
+  int count = 0;
+  for (struct proc *p = proc; p < &proc[NPROC]; p++) {
+    acquire(&p->lock);
+    if (p->state != UNUSED) {
+      count++;
+    }
+    release(&p->lock);
+  }
+  return count;
+}
